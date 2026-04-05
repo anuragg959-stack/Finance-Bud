@@ -11,6 +11,47 @@
     JPY: 0.56,
   };
 
+  const categoryColors = {
+    Food: "#FF7043",
+    Travel: "#42A5F5",
+    Bills: "#AB47BC",
+    Shopping: "#EC407A",
+    Health: "#26A69A",
+    Entertainment: "#FFA726",
+    Other: "#8D6E63",
+  };
+
+  const assistantKnowledgeBase = [
+    {
+      id: "food_control",
+      check: (insight) => insight.foodPercent > 30,
+      advice: "Your food spend is high. Set a weekly meal budget and batch-cook 2 days/week.",
+      reason: (insight) =>
+        `Food is ${insight.foodPercent.toFixed(1)}% of total spending, which is above 30%.`,
+    },
+    {
+      id: "small_expense_control",
+      check: (insight) => insight.smallExpenseCount >= 5,
+      advice: "You have many small expenses. Use a daily micro-budget to prevent leakages.",
+      reason: (insight) =>
+        `${insight.smallExpenseCount} transactions are under ₹500, indicating frequent impulse spends.`,
+    },
+    {
+      id: "trend_alert",
+      check: (insight) => insight.trendSlope > 0,
+      advice: "Your spending trend is rising. Add a weekly spending cap and review every Sunday.",
+      reason: (insight) =>
+        `Trend model slope is +${insight.trendSlope.toFixed(2)} (INR/day index), showing upward momentum.`,
+    },
+    {
+      id: "trend_good",
+      check: (insight) => insight.trendSlope < 0,
+      advice: "Great job. Your spending trend is decreasing—keep this rhythm and automate savings.",
+      reason: (insight) =>
+        `Trend model slope is ${insight.trendSlope.toFixed(2)}, which indicates spending is cooling down.`,
+    },
+  ];
+
   let pieChart;
   let barChart;
   let lineChart;
@@ -120,6 +161,10 @@
     return `${currency} ${Number(amount).toFixed(2)}`;
   }
 
+  function getCategoryColor(category) {
+    return categoryColors[category] || "#9E9E9E";
+  }
+
   function loadExpenses() {
     const expenseList = document.getElementById("expense-list");
     if (!expenseList) return;
@@ -141,7 +186,7 @@
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${formatAmount(expense.amount, expense.currency)}</td>
-        <td>${expense.category}</td>
+        <td><span class="category-pill" style="--cat-color:${getCategoryColor(expense.category)}">${expense.category}</span></td>
         <td>${expense.date}</td>
         <td>${expense.notes || "-"}</td>
         <td><button class="btn btn-danger small" data-index="${index}" type="button">Delete</button></td>
@@ -204,7 +249,7 @@
         datasets: [{
           label: "Category Spend (INR)",
           data: categoryData,
-          backgroundColor: ["#4CAF50", "#81C784", "#A5D6A7", "#C8E6C9", "#66BB6A", "#2E7D32", "#AED581"],
+          backgroundColor: categoryLabels.map((category) => getCategoryColor(category)),
         }],
       },
       options: { plugins: { legend: { position: "bottom" } }, maintainAspectRatio: false },
@@ -249,20 +294,87 @@
       .reduce((sum, item) => sum + toINR(Number(item.amount), item.currency), 0);
     const smallExpenses = expenses.filter((item) => toINR(Number(item.amount), item.currency) < 500);
 
+    const trendModel = runTrendModel(expenses);
+
     return {
       totalINR,
       foodPercent: totalINR ? (foodINR / totalINR) * 100 : 0,
       smallExpenseCount: smallExpenses.length,
       expenseCount: expenses.length,
+      trendSlope: trendModel.slope,
+      predictedNextDaily: trendModel.predictedNext,
+      topCategory: getTopCategory(expenses),
     };
+  }
+
+  function getTopCategory(expenses) {
+    const categoryTotals = getCategoryTotals(expenses);
+    const sorted = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+    return sorted.length ? { name: sorted[0][0], amount: sorted[0][1] } : null;
+  }
+
+  // Simple ML-style trend model: linear regression on daily spend sequence.
+  function runTrendModel(expenses) {
+    const byDay = new Map();
+    expenses.forEach((expense) => {
+      if (!expense.date) return;
+      const key = expense.date;
+      const value = toINR(Number(expense.amount), expense.currency);
+      byDay.set(key, (byDay.get(key) || 0) + value);
+    });
+
+    const points = Array.from(byDay.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map((entry, index) => ({ x: index + 1, y: entry[1] }));
+
+    if (points.length < 2) {
+      return { slope: 0, predictedNext: points.length ? points[0].y : 0 };
+    }
+
+    const n = points.length;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    let sumXX = 0;
+
+    points.forEach((point) => {
+      sumX += point.x;
+      sumY += point.y;
+      sumXY += point.x * point.y;
+      sumXX += point.x * point.x;
+    });
+
+    const denominator = n * sumXX - sumX * sumX;
+    if (denominator === 0) {
+      return { slope: 0, predictedNext: points[points.length - 1].y };
+    }
+
+    const slope = (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+    const predictedNext = intercept + slope * (n + 1);
+    return { slope, predictedNext: Math.max(0, predictedNext) };
   }
 
   function getAssistantReply(message) {
     const text = message.toLowerCase();
     const insight = getExpenseInsights();
 
+    if (text.includes("analyze") || text.includes("insight") || text.includes("reason")) {
+      const recommendations = getAssistantRecommendations(insight);
+      if (!recommendations.length) {
+        return "I analyzed your data. Spending pattern looks stable. Keep tracking and automate monthly savings.";
+      }
+      return recommendations
+        .slice(0, 2)
+        .map((item, index) => `${index + 1}) ${item.advice} Reason: ${item.reason}`)
+        .join(" ");
+    }
+
     if (text.includes("summary") || text.includes("total") || text.includes("spend")) {
-      return `You logged ${insight.expenseCount} expenses. Total spending is ₹${insight.totalINR.toFixed(2)}.`;
+      const topCategoryText = insight.topCategory
+        ? ` Top category is ${insight.topCategory.name} (₹${insight.topCategory.amount.toFixed(2)}).`
+        : "";
+      return `You logged ${insight.expenseCount} expenses. Total spending is ₹${insight.totalINR.toFixed(2)}.${topCategoryText}`;
     }
 
     if (text.includes("food") || text.includes("eat")) {
@@ -281,7 +393,25 @@
       return "Consider SIP investments for disciplined long-term growth. Start small and increase monthly.";
     }
 
-    return "Ask me about your total spending, food expenses, budget tips, or savings strategy.";
+    return "Ask me about spending summary, food control, budget tips, or type 'analyze insights' for model-based reasoning.";
+  }
+
+  function getAssistantRecommendations(insight) {
+    const rules = assistantKnowledgeBase
+      .filter((rule) => rule.check(insight))
+      .map((rule) => ({
+        advice: rule.advice,
+        reason: rule.reason(insight),
+      }));
+
+    if (insight.predictedNextDaily > 0) {
+      rules.push({
+        advice: "Predicted next daily spend suggests setting auto-transfer to savings before daily spending begins.",
+        reason: `Trend model predicts next daily spend around ₹${insight.predictedNextDaily.toFixed(2)}.`,
+      });
+    }
+
+    return rules;
   }
 
   function addChatMessage(text, role) {
@@ -331,10 +461,16 @@
 
     analyzeBtn.addEventListener("click", () => {
       const insight = getExpenseInsights();
-      addChatMessage(
-        `Auto-analysis: total ₹${insight.totalINR.toFixed(2)}, food ${insight.foodPercent.toFixed(1)}%, small expenses ${insight.smallExpenseCount}.`,
-        "bot"
-      );
+      const recommendations = getAssistantRecommendations(insight);
+      const leadLine = `Auto-analysis (ML trend): total ₹${insight.totalINR.toFixed(2)}, food ${insight.foodPercent.toFixed(1)}%, small spends ${insight.smallExpenseCount}, slope ${insight.trendSlope.toFixed(2)}.`;
+      addChatMessage(leadLine, "bot");
+      if (!recommendations.length) {
+        addChatMessage("No major risk pattern detected. Keep your current discipline and consider SIP automation.", "bot");
+      } else {
+        recommendations.slice(0, 2).forEach((item) => {
+          addChatMessage(`${item.advice} Reason: ${item.reason}`, "bot");
+        });
+      }
     });
   }
 

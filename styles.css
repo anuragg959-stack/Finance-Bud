@@ -330,6 +330,18 @@ td {
   vertical-align: top;
 }
 
+.category-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--cat-color);
+  background: color-mix(in srgb, var(--cat-color) 18%, white);
+  color: #1f1f1f;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
