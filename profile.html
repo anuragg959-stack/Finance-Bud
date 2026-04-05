@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Bud | Profile</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="top-nav">
+    <a href="dashboard.html" class="brand-link">
+      <span class="mini-logo">🌱</span>
+      <span>Finance Bud</span>
+    </a>
+    <nav class="nav-actions">
+      <label class="theme-switch" title="Toggle light/dark mode">
+        <input type="checkbox" id="nav-theme-toggle" />
+        <span>Dark Mode</span>
+      </label>
+      <a href="dashboard.html" class="nav-link">Dashboard</a>
+      <a href="index.html" class="nav-link">Home</a>
+    </nav>
+  </header>
+
+  <main class="profile-layout">
+    <section class="card profile-card">
+      <h2>Profile</h2>
+      <div class="profile-header">
+        <div class="avatar avatar-clickable" id="avatar-preview" aria-label="Upload profile photo" role="button" tabindex="0">👤</div>
+        <input type="file" id="profile-photo-input" accept="image/*" hidden />
+        <div>
+          <p><strong>Name:</strong> <span id="profile-name">Alex Budgeter</span></p>
+          <p><strong>Email:</strong> <span id="profile-email">alex@financebud.app</span></p>
+          <p><strong>Phone:</strong> <span id="profile-phone">+91 99999 99999</span></p>
+          <small>Click avatar to upload your photo.</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Rewards & Gamification</h2>
+      <p>Total Points: <strong id="reward-points">0</strong></p>
+      <div id="badge-list" class="badge-list"></div>
+      <small>Earn points each time you add an expense.</small>
+    </section>
+
+    <section class="card">
+      <h2>Help & Support</h2>
+      <details>
+        <summary>How are points calculated?</summary>
+        <p>You earn 10 points for each expense logged.</p>
+      </details>
+      <details>
+        <summary>Can I change my default currency?</summary>
+        <p>Yes, use the settings section below and it will be saved locally.</p>
+      </details>
+      <p class="support-note">Need more help? Contact us at support@financebud.app</p>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <label>
+        Preferred Currency
+        <select id="preferred-currency">
+          <option value="INR">INR</option>
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+          <option value="GBP">GBP</option>
+          <option value="JPY">JPY</option>
+        </select>
+      </label>
+      <button class="btn btn-secondary" id="save-settings">Save Settings</button>
+    </section>
+
+    <section class="card">
+      <h2>Logout</h2>
+      <p>Clears local app data and returns to home page.</p>
+      <button class="btn btn-danger" id="logout-btn">Logout</button>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
