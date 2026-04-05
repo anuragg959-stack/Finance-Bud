@@ -12,11 +12,7 @@
       <span class="mini-logo">🌱</span>
       <span>Finance Bud</span>
     </a>
-    <nav class="nav-actions">
-      <label class="theme-switch" title="Toggle light/dark mode">
-        <input type="checkbox" id="nav-theme-toggle" />
-        <span>Dark Mode</span>
-      </label>
+    <nav>
       <a href="dashboard.html" class="nav-link">Dashboard</a>
       <a href="index.html" class="nav-link">Home</a>
     </nav>
@@ -26,13 +22,10 @@
     <section class="card profile-card">
       <h2>Profile</h2>
       <div class="profile-header">
-        <div class="avatar avatar-clickable" id="avatar-preview" aria-label="Upload profile photo" role="button" tabindex="0">👤</div>
-        <input type="file" id="profile-photo-input" accept="image/*" hidden />
+        <div class="avatar" aria-hidden="true">👤</div>
         <div>
           <p><strong>Name:</strong> <span id="profile-name">Alex Budgeter</span></p>
           <p><strong>Email:</strong> <span id="profile-email">alex@financebud.app</span></p>
-          <p><strong>Phone:</strong> <span id="profile-phone">+91 99999 99999</span></p>
-          <small>Click avatar to upload your photo.</small>
         </div>
       </div>
     </section>
@@ -68,6 +61,10 @@
           <option value="GBP">GBP</option>
           <option value="JPY">JPY</option>
         </select>
+      </label>
+      <label class="theme-toggle">
+        <input type="checkbox" id="theme-toggle" />
+        Use darker theme
       </label>
       <button class="btn btn-secondary" id="save-settings">Save Settings</button>
     </section>
