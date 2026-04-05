@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Bud | Track smarter</title>
-  <link rel="stylesheet" href="styles.css?v=20260405" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="landing-body">
   <main class="landing-container">
@@ -30,35 +30,11 @@
 
       <div class="hero-actions">
         <a href="dashboard.html" class="btn btn-primary fade-in-seq seq-1">Get Started</a>
-        <button id="open-profile-modal" class="btn btn-secondary fade-in-seq seq-2" type="button">Create a Profile</button>
+        <a href="dashboard.html" class="btn btn-secondary fade-in-seq seq-2">Login</a>
       </div>
     </section>
   </main>
 
-  <div id="profile-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
-    <div class="modal-content card">
-      <div class="modal-header">
-        <h2 id="profile-modal-title">Create Your Profile</h2>
-        <button id="close-profile-modal" class="btn btn-secondary small" type="button">Close</button>
-      </div>
-      <form id="profile-create-form" class="expense-form">
-        <label>
-          Full Name
-          <input type="text" id="create-name" required placeholder="Your name" />
-        </label>
-        <label>
-          Email ID
-          <input type="email" id="create-email" required placeholder="you@email.com" />
-        </label>
-        <label>
-          Phone Number
-          <input type="tel" id="create-phone" required placeholder="10-digit number" pattern="[0-9+\-()\s]{8,}" />
-        </label>
-        <button type="submit" class="btn btn-primary">Save Profile</button>
-      </form>
-    </div>
-  </div>
-
-  <script src="script.js?v=20260405"></script>
+  <script src="script.js"></script>
 </body>
 </html>

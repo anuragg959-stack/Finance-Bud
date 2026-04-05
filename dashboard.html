@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Bud | Dashboard</title>
-  <link rel="stylesheet" href="styles.css?v=20260405" />
+  <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -13,11 +13,7 @@
       <span class="mini-logo">🌱</span>
       <span>Finance Bud</span>
     </a>
-    <nav class="nav-actions">
-      <label class="theme-switch" title="Toggle light/dark mode">
-        <input type="checkbox" id="nav-theme-toggle" />
-        <span>Dark Mode</span>
-      </label>
+    <nav>
       <a href="profile.html" class="nav-link">Profile</a>
       <a href="index.html" class="nav-link">Logout</a>
     </nav>
@@ -119,15 +115,11 @@
   <aside class="assistant card" id="assistant-box">
     <div class="assistant-header">
       <h3>AI Finance Assistant 🤖</h3>
-      <button id="refresh-tips" class="btn btn-secondary small" type="button">Analyze</button>
+      <button id="refresh-tips" class="btn btn-secondary small">Refresh Tips</button>
     </div>
-    <div id="assistant-chat" class="assistant-chat"></div>
-    <form id="assistant-form" class="assistant-input-row">
-      <input id="assistant-input" type="text" placeholder="Ask about your expenses..." required />
-      <button class="btn btn-primary small" type="submit">Send</button>
-    </form>
+    <ul id="assistant-messages" class="assistant-messages"></ul>
   </aside>
 
-  <script src="script.js?v=20260405"></script>
+  <script src="script.js"></script>
 </body>
 </html>
