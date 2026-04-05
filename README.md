@@ -32,3 +32,12 @@ Then open:
 4. Clear site data/localStorage for the page if older data is interfering.
 
 > Note: `styles.css` and `script.js` are now loaded with a version query string to reduce stale browser caching.
+
+## Requested enhancements implemented
+
+1. **Top-right dark mode toggle on dashboard/profile nav**.
+2. **Clickable profile avatar photo upload** on `profile.html`.
+3. **"Create a Profile" popup modal** on landing page to capture name, email, phone.
+4. **Login renamed to "Create a Profile"** on landing CTA.
+5. **Interactive AI Finance Assistant chatbot** with message input and contextual replies on dashboard.
+

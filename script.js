@@ -1,6 +1,7 @@
 (function () {
   const STORAGE_KEY = "financeBudData";
   const SETTINGS_KEY = "financeBudSettings";
+  const PROFILE_KEY = "financeBudProfile";
 
   const conversionRatesToINR = {
     INR: 1,
@@ -33,6 +34,71 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+  function getSettings() {
+    const fallback = { preferredCurrency: "INR", darkMode: false };
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return fallback;
+      return { ...fallback, ...JSON.parse(raw) };
+    } catch (error) {
+      console.warn("Could not parse settings.", error);
+      return fallback;
+    }
+  }
+
+  function saveSettings(settings) {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
+
+  function getProfile() {
+    const fallback = {
+      name: "Alex Budgeter",
+      email: "alex@financebud.app",
+      phone: "+91 99999 99999",
+      photo: "",
+    };
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY);
+      if (!raw) return fallback;
+      return { ...fallback, ...JSON.parse(raw) };
+    } catch (error) {
+      console.warn("Could not parse profile.", error);
+      return fallback;
+    }
+  }
+
+  function saveProfile(profile) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  }
+
+  function applyTheme(settings) {
+    if (settings.darkMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
+
+    const navToggle = document.getElementById("nav-theme-toggle");
+    if (navToggle) {
+      navToggle.checked = Boolean(settings.darkMode);
+    }
+  }
+
+  function setupNavThemeToggle() {
+    const navToggle = document.getElementById("nav-theme-toggle");
+    if (!navToggle) return;
+
+    navToggle.addEventListener("change", () => {
+      const settings = getSettings();
+      const nextSettings = {
+        ...settings,
+        darkMode: navToggle.checked,
+      };
+      saveSettings(nextSettings);
+      applyTheme(nextSettings);
+    });
+  }
+
   function addExpense(expense) {
     const data = getStoredData();
     data.expenses.push(expense);
@@ -58,9 +124,9 @@
     const expenseList = document.getElementById("expense-list");
     if (!expenseList) return;
 
-    const filter = document.getElementById("category-filter").value;
-    const data = getStoredData();
-    const expenses = data.expenses;
+    const filterEl = document.getElementById("category-filter");
+    const filter = filterEl ? filterEl.value : "All";
+    const expenses = getStoredData().expenses;
     expenseList.innerHTML = "";
 
     let totalINR = 0;
@@ -78,13 +144,15 @@
         <td>${expense.category}</td>
         <td>${expense.date}</td>
         <td>${expense.notes || "-"}</td>
-        <td><button class="btn btn-danger small" data-index="${index}">Delete</button></td>
+        <td><button class="btn btn-danger small" data-index="${index}" type="button">Delete</button></td>
       `;
       expenseList.appendChild(row);
     });
 
     const totalLabel = document.getElementById("total-inr");
-    totalLabel.textContent = `₹${totalINR.toFixed(2)}`;
+    if (totalLabel) {
+      totalLabel.textContent = `₹${totalINR.toFixed(2)}`;
+    }
 
     expenseList.querySelectorAll("button[data-index]").forEach((button) => {
       button.addEventListener("click", function () {
@@ -92,7 +160,6 @@
         deleteExpense(index);
         loadExpenses();
         updateCharts();
-        renderAssistantTips();
       });
     });
   }
@@ -116,8 +183,7 @@
   }
 
   function updateCharts() {
-    const hasChart = typeof Chart !== "undefined";
-    if (!hasChart || !document.getElementById("pie-chart")) return;
+    if (typeof Chart === "undefined" || !document.getElementById("pie-chart")) return;
 
     const expenses = getStoredData().expenses;
     const categoryTotals = getCategoryTotals(expenses);
@@ -175,65 +241,101 @@
     });
   }
 
-  function renderAssistantTips() {
-    const list = document.getElementById("assistant-messages");
-    if (!list) return;
-
+  function getExpenseInsights() {
     const expenses = getStoredData().expenses;
-    const totalINR = expenses.reduce(
-      (sum, expense) => sum + toINR(Number(expense.amount), expense.currency),
-      0
-    );
-
+    const totalINR = expenses.reduce((sum, item) => sum + toINR(Number(item.amount), item.currency), 0);
     const foodINR = expenses
-      .filter((expense) => expense.category === "Food")
-      .reduce((sum, expense) => sum + toINR(Number(expense.amount), expense.currency), 0);
+      .filter((item) => item.category === "Food")
+      .reduce((sum, item) => sum + toINR(Number(item.amount), item.currency), 0);
+    const smallExpenses = expenses.filter((item) => toINR(Number(item.amount), item.currency) < 500);
 
-    const smallExpenses = expenses.filter((expense) => toINR(Number(expense.amount), expense.currency) < 500);
+    return {
+      totalINR,
+      foodPercent: totalINR ? (foodINR / totalINR) * 100 : 0,
+      smallExpenseCount: smallExpenses.length,
+      expenseCount: expenses.length,
+    };
+  }
 
-    const tips = [];
+  function getAssistantReply(message) {
+    const text = message.toLowerCase();
+    const insight = getExpenseInsights();
 
-    if (totalINR > 0 && foodINR / totalINR > 0.3) {
-      tips.push("Food spending is over 30%. Try meal planning to cut costs.");
+    if (text.includes("summary") || text.includes("total") || text.includes("spend")) {
+      return `You logged ${insight.expenseCount} expenses. Total spending is ₹${insight.totalINR.toFixed(2)}.`;
     }
 
-    if (smallExpenses.length >= 5) {
-      tips.push("You have many small expenses. Set a mini daily spending cap.");
+    if (text.includes("food") || text.includes("eat")) {
+      return insight.foodPercent > 30
+        ? `Food spending is ${insight.foodPercent.toFixed(1)}% of your total, which is above 30%. Try setting a weekly food budget.`
+        : `Food spending is ${insight.foodPercent.toFixed(1)}% of your total. Nice control so far.`;
     }
 
-    tips.push("Consider SIP investments to grow long-term wealth.");
-    tips.push("Track subscriptions monthly and cancel unused ones.");
+    if (text.includes("small") || text.includes("budget") || text.includes("save")) {
+      return insight.smallExpenseCount >= 5
+        ? `You have ${insight.smallExpenseCount} small expenses. Consider a daily pocket budget to reduce impulse buys.`
+        : "Your small expenses are under control. You can still set a weekly budget for better savings.";
+    }
 
-    list.innerHTML = "";
-    tips.forEach((tip) => {
-      const item = document.createElement("li");
-      item.textContent = tip;
-      list.appendChild(item);
+    if (text.includes("invest") || text.includes("sip")) {
+      return "Consider SIP investments for disciplined long-term growth. Start small and increase monthly.";
+    }
+
+    return "Ask me about your total spending, food expenses, budget tips, or savings strategy.";
+  }
+
+  function addChatMessage(text, role) {
+    const chat = document.getElementById("assistant-chat");
+    if (!chat) return;
+
+    const bubble = document.createElement("div");
+    bubble.className = `chat-message ${role}`;
+    bubble.textContent = text;
+    chat.appendChild(bubble);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function seedAssistantGreeting() {
+    const chat = document.getElementById("assistant-chat");
+    if (!chat || chat.childElementCount > 0) return;
+
+    addChatMessage("Hi! I am your Finance Bud assistant. Ask me about your expenses.", "bot");
+    const insight = getExpenseInsights();
+    if (insight.foodPercent > 30) {
+      addChatMessage("Food spending is above 30%. Meal planning can help reduce costs.", "bot");
+    }
+    if (insight.smallExpenseCount >= 5) {
+      addChatMessage("I noticed several small spends. A mini daily limit could help.", "bot");
+    }
+  }
+
+  function setupAssistantChat() {
+    const form = document.getElementById("assistant-form");
+    const input = document.getElementById("assistant-input");
+    const analyzeBtn = document.getElementById("refresh-tips");
+
+    if (!form || !input || !analyzeBtn) return;
+
+    seedAssistantGreeting();
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+
+      addChatMessage(message, "user");
+      const reply = getAssistantReply(message);
+      addChatMessage(reply, "bot");
+      input.value = "";
     });
-  }
 
-  function getSettings() {
-    const fallback = { preferredCurrency: "INR", darkMode: false };
-    try {
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return fallback;
-      return { ...fallback, ...JSON.parse(raw) };
-    } catch (error) {
-      console.warn("Could not parse settings.", error);
-      return fallback;
-    }
-  }
-
-  function saveSettings(settings) {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  }
-
-  function applyTheme(settings) {
-    if (settings.darkMode) {
-      document.body.classList.add("dark-mode");
-    } else {
-      document.body.classList.remove("dark-mode");
-    }
+    analyzeBtn.addEventListener("click", () => {
+      const insight = getExpenseInsights();
+      addChatMessage(
+        `Auto-analysis: total ₹${insight.totalINR.toFixed(2)}, food ${insight.foodPercent.toFixed(1)}%, small expenses ${insight.smallExpenseCount}.`,
+        "bot"
+      );
+    });
   }
 
   function updateProfileRewards() {
@@ -285,19 +387,66 @@
 
       loadExpenses();
       updateCharts();
-      renderAssistantTips();
+      addChatMessage("New expense added. Ask for a summary anytime.", "bot");
     });
 
-    document.getElementById("category-filter").addEventListener("change", () => {
-      loadExpenses();
-    });
-
-    const refreshTipsBtn = document.getElementById("refresh-tips");
-    refreshTipsBtn.addEventListener("click", renderAssistantTips);
+    const filter = document.getElementById("category-filter");
+    if (filter) {
+      filter.addEventListener("change", loadExpenses);
+    }
 
     loadExpenses();
     updateCharts();
-    renderAssistantTips();
+    setupAssistantChat();
+  }
+
+  function renderProfileInfo() {
+    const profile = getProfile();
+    const nameEl = document.getElementById("profile-name");
+    const emailEl = document.getElementById("profile-email");
+    const phoneEl = document.getElementById("profile-phone");
+    const avatarPreview = document.getElementById("avatar-preview");
+
+    if (nameEl) nameEl.textContent = profile.name;
+    if (emailEl) emailEl.textContent = profile.email;
+    if (phoneEl) phoneEl.textContent = profile.phone;
+
+    if (avatarPreview && profile.photo) {
+      avatarPreview.innerHTML = `<img src="${profile.photo}" alt="Profile Photo" />`;
+    }
+  }
+
+  function setupProfilePhotoUpload() {
+    const avatar = document.getElementById("avatar-preview");
+    const input = document.getElementById("profile-photo-input");
+
+    if (!avatar || !input) return;
+
+    function openPicker() {
+      input.click();
+    }
+
+    avatar.addEventListener("click", openPicker);
+    avatar.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openPicker();
+      }
+    });
+
+    input.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const profile = getProfile();
+        profile.photo = String(reader.result || "");
+        saveProfile(profile);
+        renderProfileInfo();
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   function setupProfile() {
@@ -305,21 +454,17 @@
     if (!saveBtn) return;
 
     const currencySelect = document.getElementById("preferred-currency");
-    const themeToggle = document.getElementById("theme-toggle");
     const logoutBtn = document.getElementById("logout-btn");
 
     const settings = getSettings();
     currencySelect.value = settings.preferredCurrency;
-    themeToggle.checked = Boolean(settings.darkMode);
-    applyTheme(settings);
 
     saveBtn.addEventListener("click", () => {
       const nextSettings = {
+        ...settings,
         preferredCurrency: currencySelect.value,
-        darkMode: themeToggle.checked,
       };
       saveSettings(nextSettings);
-      applyTheme(nextSettings);
       alert("Settings saved locally.");
     });
 
@@ -328,17 +473,63 @@
       window.location.href = "index.html";
     });
 
+    renderProfileInfo();
+    setupProfilePhotoUpload();
     updateProfileRewards();
   }
 
-  function initGlobalTheme() {
-    applyTheme(getSettings());
+  function setupProfileCreationModal() {
+    const openBtn = document.getElementById("open-profile-modal");
+    const closeBtn = document.getElementById("close-profile-modal");
+    const modal = document.getElementById("profile-modal");
+    const form = document.getElementById("profile-create-form");
+
+    if (!openBtn || !closeBtn || !modal || !form) return;
+
+    function openModal() {
+      modal.classList.remove("hidden");
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+    }
+
+    openBtn.addEventListener("click", openModal);
+    closeBtn.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const name = document.getElementById("create-name").value.trim();
+      const email = document.getElementById("create-email").value.trim();
+      const phone = document.getElementById("create-phone").value.trim();
+
+      if (!name || !email || !phone) return;
+
+      const current = getProfile();
+      saveProfile({
+        ...current,
+        name,
+        email,
+        phone,
+      });
+
+      window.location.href = "profile.html";
+    });
   }
 
   function init() {
-    initGlobalTheme();
+    applyTheme(getSettings());
+    setupNavThemeToggle();
     setupDashboard();
     setupProfile();
+    setupProfileCreationModal();
   }
 
   document.addEventListener("DOMContentLoaded", init);
